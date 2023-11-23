@@ -1,16 +1,20 @@
 import { useState, useEffect } from 'react'
-import Blog from './components/Blog'
-import Notification from './components/Notification'
+
 import blogService from './services/blogs'
 import loginService from './services/login'
 import axios from 'axios'
+
+import { useQuery, useMutation, QueryClient, useQueryClient } from '@tanstack/react-query'
+
+import Blog from './components/Blog'
+import Notification from './components/Notification'
 import Togglable from './components/Togglable'
 import BlogForm from './components/BlogForm'
+
 axios.defaults.baseURL = `http://localhost:3001`
 
-
 const App = () => {
-  const [blogs, setBlogs] = useState([])
+  // *! Se comenta por uso de useQuery : const [blogs, setBlogs] = useState([])
   const [errorMessage, setErrorMessage] = useState(null)
   const [notification, setNotification] = useState(null)
   const [username,setUsername] = useState('')
@@ -22,13 +26,8 @@ const App = () => {
     url: ""
   })
 
-  useEffect(() => {
-    blogService.getAll().then(blogs =>
-      setBlogs( blogs ),
-    )
-    //to reload page after creating new blog
-  }, [blog])
-
+  const queryClient = useQueryClient()
+  //First check if the user is logged in
   useEffect(() => {
     const loggedUserJSON = window.localStorage.getItem('loggedBlogUser')
     if(loggedUserJSON) {
@@ -38,9 +37,101 @@ const App = () => {
     }
   }, [])
 
-  //Add New Blog
+  //*Mutation for New blogs
+  const newBlogMutation = useMutation({ 
+    mutationFn: blogService.create,
+    onSuccess: (returnedBlog) => {
+      const blogs = queryClient.getQueryData(['blogs'])
+      queryClient.setQueryData(['blogs'], blogs.concat(returnedBlog))
+
+      setNotification(`A new blog ${returnedBlog.title} by ${returnedBlog.author} has been added`)
+      setTimeout(() => {
+        setNotification(null)
+      }, 5000)
+    },
+    onError: (error) => {
+      console.error('Error in mutation', error)
+      setErrorMessage(`there was an error ${error}`)
+      setTimeout(() => {
+        setErrorMessage(null)
+      }, 5000)
+    }
+  })
+
+  //*Mutation for update blogs LIKES
+  const updateBlogMutation = useMutation({
+    mutationFn: ({newObject, id}) => blogService.like(newObject, id),
+    onSuccess: (returnedBlog) => {
+      queryClient.invalidateQueries({ queryKey: ['blogs']});
+      setNotification(`You liked this blog: "${returnedBlog.title}" has now ${returnedBlog.likes} likes`)
+      setTimeout(() => {
+        setNotification(null)
+      }, 5000)
+    },
+    onError: (error) => {
+      console.error('Error in mutation', error)
+      setErrorMessage(`there was an error ${error}`)
+      setTimeout(() => {
+        setErrorMessage(null)
+      }, 5000)
+    }
+  })
+
+  //*Mutation for DELETE blogs
+  const deleteBlogMutation = useMutation({
+    mutationFn: ({id}) => blogService.deleteBlog(id),
+    onSuccess: (returnedBlog) => {
+      queryClient.invalidateQueries({ queryKey: ['blogs']});
+      setTimeout(() => {
+        setNotification(null)
+      }, 5000)
+    },
+    onError: (error) => {
+      console.error('Error in mutation', error)
+      setErrorMessage(`there was an error ${error}`)
+      setTimeout(() => {
+        setErrorMessage(null)
+      }, 5000)
+    }
+    
+  })
+
+  //useQuery to fetch data
+  const {data, isLoading, error} = useQuery({
+    queryKey: ['blogs'],
+    queryFn: () => blogService.getAll(),
+    refetchOnWindowFocus: false,
+  })
+
+  if(isLoading) {
+    return <div>loading data...</div>
+  }
+
+  if(error) {
+    return <div>Error fetching data {error.message}</div>
+  }
+  const blogs = data
+
+
+  console.log('blogs', blogs);
+
+  /**
+  *!Comentado porque se hace el fetch desde useQuery
+  useEffect(() => {
+    blogService.getAll().then(blogs =>
+      setBlogs( blogs ),
+    )
+    //to reload page after creating new blog
+  }, [blog])
+  */
+
+
+  //*Add New Blog
   const addBlog = ( blogObject ) => {
-    blogService.create(blogObject)
+    newBlogMutation.mutate(blogObject)
+    /**
+     *!Se comenta por uso de UseQuery
+     * blogService.create(blogObject)
       .then(returnedBlog => {
         setBlog(blogs.concat(returnedBlog))
         setNotification(`A new blog ${returnedBlog.title} by ${returnedBlog.author} has been added`)
@@ -54,12 +145,15 @@ const App = () => {
           setErrorMessage(null)
         }, 5000)
       })
+    */  
   }
 
-  //Add likes to blogs
+  //*Add likes to blogs
   const handleLikeBlog = ( blogObject ) => {
     let blogId = blogObject.id
-    delete blogObject.id
+    updateBlogMutation.mutate({ newObject: blogObject, id:blogId})
+  /**
+  *!Comentado porque se hace con useQuery
     blogService.like(blogObject, blogId)
       .then(returnedBlog => {
         setBlog(blogs.concat(returnedBlog))
@@ -74,16 +168,22 @@ const App = () => {
           setErrorMessage(null)
         }, 5000)
       })
+    */
   }
 
-  //Remove Blogs
+  //*Remove Blogs
   const handleRemoveBlog = ( blogObject ) => {
     let title = blogObject.title
     let blogId = blogObject.id
     let blogAuthor = blogObject.author
+    deleteBlogMutation.mutate({id:blogId})
+    window.confirm(`Remove blog ${title} by ${blogAuthor}`)
+    setNotification(`blog ${title} was deleted`)
+
+    /**
+    *!Comentado porque se hace con useQuery
     blogService.deleteBlog(blogId)
       .then(() => {
-        console.log(title, blogId, blogAuthor);
         window.confirm(`Remove blog ${title} by ${blogAuthor}`)
         setNotification(`blog ${title} was deleted`)
         setBlog(blogs)
@@ -97,6 +197,7 @@ const App = () => {
           setErrorMessage(null)
         }, 5000)
       })
+    */
   }
 
   //Handle Login for User

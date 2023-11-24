@@ -1,5 +1,6 @@
 import axios from "axios";
 const baseUrl = "/api/blogs";
+const userUrl = "api/users"
 
 let token = null;
 
@@ -46,4 +47,10 @@ const deleteBlog = async (id) => {
   return response.data;
 };
 
-export default { getAll, create, setToken, like, deleteBlog };
+//get users
+const getUsers = () => {
+  const request = axios.get(userUrl);
+  return request.then((response) => response.data)
+}
+
+export default { getAll, create, setToken, like, deleteBlog, getUsers };

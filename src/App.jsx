@@ -4,8 +4,8 @@ import blogService from './services/blogs'
 import loginService from './services/login'
 import axios from 'axios'
 
-import { useQuery, useMutation, QueryClient, useQueryClient } from '@tanstack/react-query'
-import { useNotificationDispatch, REMOVE, ADD, VOTE, ERROR } from './components/createContext'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+// import { useNotificationDispatch, REMOVE, ADD, VOTE, ERROR } from './components/createContext'
 
 import Blog from './components/Blog'
 import Notification from './components/Notification'
@@ -15,7 +15,7 @@ import BlogForm from './components/BlogForm'
 axios.defaults.baseURL = `http://localhost:3001`
 
 const App = () => {
-  const notificationDispatch = useNotificationDispatch()
+  // const notificationDispatch = useNotificationDispatch()
   // *! Se comenta por uso de useQuery : const [blogs, setBlogs] = useState([])
   const [errorMessage, setErrorMessage] = useState(null)
   const [notification, setNotification] = useState(null)
@@ -29,6 +29,7 @@ const App = () => {
   })
 
   const queryClient = useQueryClient()
+
   //First check if the user is logged in
   useEffect(() => {
     const loggedUserJSON = window.localStorage.getItem('loggedBlogUser')
@@ -97,7 +98,7 @@ const App = () => {
     }
     
   })
-
+  
   //useQuery to fetch data
   const {data, isLoading, error} = useQuery({
     queryKey: ['blogs'],
@@ -114,6 +115,16 @@ const App = () => {
   }
   const blogs = data
 
+  // //*For GET Users data
+  // const userData = useQuery({
+  //   queryKey: ['users'],
+  //   queryFn: () => blogService.getUsers(),
+  //   refetchOnWindowFocus: false
+  // })
+
+  // const usersData = userData
+
+  // console.log('users', usersData)
 
   console.log('blogs', blogs);
 
@@ -154,10 +165,10 @@ const App = () => {
   const handleLikeBlog = ( blogObject ) => {
     let blogId = blogObject.id
     updateBlogMutation.mutate({ newObject: blogObject, id:blogId})
-    notificationDispatch({type: VOTE})
-    setTimeout(() => {
-      notificationDispatch({ type: REMOVE })
-    }, 5000)
+    // notificationDispatch({type: VOTE})
+    // setTimeout(() => {
+    //   notificationDispatch({ type: REMOVE })
+    // }, 5000)
   /**
   *!Comentado porque se hace con useQuery
     blogService.like(blogObject, blogId)
@@ -283,6 +294,7 @@ const App = () => {
           {user.name} logged in  <br/>
           <button onClickCapture={logout}>log out</button>
         </div>
+        
         <br/>
         {blogs.sort((a, b) => a.likes > b.likes ? -1 : 1).map(blog =>
           <Blog
